@@ -1,2 +1,2 @@
 # Storming-Engine
-A purely operated C++ Physics Engine.
+A purely operated C++ 2D Physics Engine.
