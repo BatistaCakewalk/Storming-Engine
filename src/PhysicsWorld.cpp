@@ -10,9 +10,9 @@ void PhysicsWorld::addBody(RigidBody* body) {
     bodies.push_back(body);
 }
 
-void PhysicsWorld::step(float dt) {
-    float floorY = 0.0f; // define floor at y = 0 - Editor Batista
+void PhysicsWorld::step(float dt) const {
     for (auto* body : bodies) {
+        float floorY = 0.0f;
         body->applyForce(gravity * body->mass); // Grav force
         body->update(dt, floorY); // pass floorY for collision
     }

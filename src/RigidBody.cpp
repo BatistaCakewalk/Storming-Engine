@@ -5,14 +5,14 @@
 #include "RigidBody.h"
 
 RigidBody::RigidBody(Vector2D pos, float mass)
-    : position(pos), mass(mass), velocity(0,0), acceleration(0,0) {}
+    : position(pos), velocity(0,0), acceleration(0,0), mass(mass) {}
 
 void RigidBody::applyForce(const Vector2D& force) {
     // F = m*a  -> a = F/m
     acceleration += force * (1.0f / mass);
 }
 
-void RigidBody::update(float dt, float floorY) {
+void RigidBody::update(const float dt, const float floorY) {
     velocity += acceleration * dt;
     position += velocity * dt;
 

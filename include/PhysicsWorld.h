@@ -13,10 +13,10 @@ public:
     std::vector<RigidBody*> bodies;
     Vector2D gravity;
 
-    PhysicsWorld(Vector2D gravity = Vector2D(0, 9.8f));
+    explicit PhysicsWorld(Vector2D gravity = Vector2D(0, 9.8f));
 
     void addBody(RigidBody* body);
-    void step(float dt);
+    void step(float dt) const;
 };
 
 #endif
