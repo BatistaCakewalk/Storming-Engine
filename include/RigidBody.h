@@ -1,7 +1,3 @@
-//
-// Created by Batista on 8/29/2025.
-//
-
 #ifndef RIGIDBODY_H
 #define RIGIDBODY_H
 
@@ -17,7 +13,7 @@ public:
     RigidBody(Vector2D pos = Vector2D(), float mass = 1.0f);
 
     void applyForce(const Vector2D& force);
-    void update(float dt); // integrate motion
+    void update(float dt, float floorY = 0.0f); // Added for collision
 };
 
 #endif

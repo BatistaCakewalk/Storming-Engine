@@ -2,14 +2,14 @@
 #include "PhysicsWorld.h"
 
 int main() {
-    PhysicsWorld world(Vector2D(0, -9.8f)); // gravity going down
+    PhysicsWorld world(Vector2D(0, -9.8f)); // gravity down
 
-    RigidBody box(Vector2D(0, 100), 2.0f); // start at y=100
+    RigidBody box(Vector2D(0, 100), 2.0f); // start at y = 100
     world.addBody(&box);
 
-    float dt = 0.016f; // simulate ~60 FPS
+    float dt = 0.016f; // ~60 FPS
 
-    for (int i = 0; i < 120; i++) { // simulate 2 seconds
+    for (int i = 0; i < 300; i++) { // simulate ~5 seconds
         world.step(dt);
         std::cout << "Time: " << i*dt
                   << "s, Position: (" << box.position.x

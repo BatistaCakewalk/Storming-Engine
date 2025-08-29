@@ -12,8 +12,15 @@ void RigidBody::applyForce(const Vector2D& force) {
     acceleration += force * (1.0f / mass);
 }
 
-void RigidBody::update(float dt) {
+void RigidBody::update(float dt, float floorY) {
     velocity += acceleration * dt;
     position += velocity * dt;
+
+    // Simple floor collision with damping
+    if (position.y < floorY) {
+        position.y = floorY;
+        velocity.y = -velocity.y * 0.5f; // bounce, 50% energy retained
+    }
+
     acceleration = Vector2D(0, 0); // reset after integration
 }

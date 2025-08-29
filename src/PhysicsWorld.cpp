@@ -11,8 +11,9 @@ void PhysicsWorld::addBody(RigidBody* body) {
 }
 
 void PhysicsWorld::step(float dt) {
+    float floorY = 0.0f; // define floor at y = 0 - Editor Batista
     for (auto* body : bodies) {
-        body->applyForce(gravity * body->mass); // gravity force
-        body->update(dt);
+        body->applyForce(gravity * body->mass); // Grav force
+        body->update(dt, floorY); // pass floorY for collision
     }
 }
