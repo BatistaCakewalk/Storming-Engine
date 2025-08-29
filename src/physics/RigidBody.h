@@ -1,0 +1,8 @@
+//
+// Created by Batista on 8/29/2025.
+//
+
+#ifndef STORMING_ENGINE_RIGIDBODY_H
+#define STORMING_ENGINE_RIGIDBODY_H
+
+#endif //STORMING_ENGINE_RIGIDBODY_H
