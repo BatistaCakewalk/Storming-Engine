@@ -4,23 +4,20 @@
 
 #include "RigidBody.h"
 
-RigidBody::RigidBody(Vector2D pos, float mass)
-    : position(pos), velocity(0,0), acceleration(0,0), mass(mass) {}
+RigidBody::RigidBody(Vector2D pos, float m) : position(pos), mass(m), velocity(0, 0) {}
 
-void RigidBody::applyForce(const Vector2D& force) {
-    // F = m*a  -> a = F/m
-    acceleration += force * (1.0f / mass);
+void RigidBody::applyForce(const Vector2D& force, float dt) {
+    Vector2D acceleration = force * (1.0f / mass); // Speed Velocity
+    velocity += acceleration * dt;
 }
 
-void RigidBody::update(const float dt, const float floorY) {
-    velocity += acceleration * dt;
+void RigidBody::update(float dt, float windowHeight) {
     position += velocity * dt;
 
-    // Simple floor collision with damping
-    if (position.y < floorY) {
-        position.y = floorY;
-        velocity.y = -velocity.y * 0.5f; // bounce, 50% energy retained
+    // Simple ground collision
+    if (position.y > windowHeight - 50) { // 50 = box size
+        position.y = windowHeight - 50;
+        velocity.y *= -0.6f; // bounce with damping
     }
-
-    acceleration = Vector2D(0, 0); // reset after integration
 }
+

@@ -4,16 +4,15 @@
 
 #include "PhysicsWorld.h"
 
-PhysicsWorld::PhysicsWorld(Vector2D gravity) : gravity(gravity) {}
+PhysicsWorld::PhysicsWorld(Vector2D g) : gravity(g) {}
 
 void PhysicsWorld::addBody(RigidBody* body) {
     bodies.push_back(body);
 }
 
-void PhysicsWorld::step(float dt) const {
+void PhysicsWorld::step(float dt, float windowHeight) {
     for (auto* body : bodies) {
-        float floorY = 0.0f;
-        body->applyForce(gravity * body->mass); // Grav force
-        body->update(dt, floorY); // pass floorY for collision
+        body->applyForce(gravity * body->mass, dt);
+        body->update(dt, windowHeight);
     }
 }
