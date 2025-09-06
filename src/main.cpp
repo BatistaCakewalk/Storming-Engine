@@ -8,11 +8,17 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Storming Engine");
 
     PhysicsWorld world;
-    RigidBody box(Vector2D(400, 50), 1.0f);
-    world.addBody(&box);
 
-    sf::RectangleShape shape(sf::Vector2f(50, 50));
-    shape.setFillColor(sf::Color::Cyan);
+    CircleBody circle1(Vector2D(200, 50));
+    CircleBody circle2(Vector2D(250, 100));
+
+    world.addBody(&circle1);
+    world.addBody(&circle2);
+
+    sf::CircleShape shape1(circle1.radius);
+    shape1.setFillColor(sf::Color::Cyan);
+    sf::CircleShape shape2(circle2.radius);
+    shape2.setFillColor(sf::Color::Green);
 
     sf::Clock clock;
 
@@ -26,10 +32,12 @@ int main() {
         float dt = clock.restart().asSeconds();
         world.step(dt, windowHeight);
 
-        shape.setPosition(box.position.x, box.position.y);
+        shape1.setPosition(circle1.position.x - circle1.radius, circle1.position.y - circle1.radius);
+        shape2.setPosition(circle2.position.x - circle2.radius, circle2.position.y - circle2.radius);
 
         window.clear(sf::Color::Black);
-        window.draw(shape);
+        window.draw(shape1);
+        window.draw(shape2);
         window.display();
     }
 
