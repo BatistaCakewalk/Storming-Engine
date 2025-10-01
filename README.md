@@ -4,6 +4,8 @@ This is the original version, when I was mainly just messing around with C++
 
 The project has been later on transfered over to Parafield Studios for future plans to turn this into a full on Game Engine.
 
+The original Repo has been made public to be used freely, enjoy!
+
 
 # Requirements
 - SFML 2.6
