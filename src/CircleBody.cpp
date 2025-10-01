@@ -1,9 +1,10 @@
 #include "CircleBody.h"
 
 CircleBody::CircleBody(Vector2D pos, float r, float m)
-    : Body(pos, m), radius(r) {}
+    : Body(pos, m), radius(r) {
+}
 
-void CircleBody::applyForce(const Vector2D& force, float dt) {
+void CircleBody::applyForce(const Vector2D &force, float dt) {
     Vector2D acceleration = force * (1.0f / mass);
     velocity += acceleration * dt;
 }

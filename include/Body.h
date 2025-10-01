@@ -15,10 +15,12 @@ public:
     float mass;
 
     // Inline constructor
-    Body(Vector2D pos, float m = 1.0f) : position(pos), velocity(0,0), mass(m) {}
+    Body(Vector2D pos, float m = 1.0f) : position(pos), velocity(0, 0), mass(m) {
+    }
 
     // Pure virtual functions for derived bodies
-    virtual void applyForce(const Vector2D& force, float dt) = 0;
+    virtual void applyForce(const Vector2D &force, float dt) = 0;
+
     virtual void update(float dt, float windowHeight) = 0;
 
     virtual ~Body() = default;

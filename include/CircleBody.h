@@ -10,7 +10,8 @@ public:
 
     CircleBody(Vector2D pos, float r = 25, float m = 1.0f);
 
-    void applyForce(const Vector2D& force, float dt) override;
+    void applyForce(const Vector2D &force, float dt) override;
+
     void update(float dt, float windowHeight) override;
 };
 #endif

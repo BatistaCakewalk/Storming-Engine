@@ -1,9 +1,10 @@
 #include "RigidBody.h"
 
 RigidBody::RigidBody(Vector2D pos, float w, float h, float m)
-    : Body(pos, m), width(w), height(h) {}
+    : Body(pos, m), width(w), height(h) {
+}
 
-void RigidBody::applyForce(const Vector2D& force, float dt) {
+void RigidBody::applyForce(const Vector2D &force, float dt) {
     Vector2D acceleration = force * (1.0f / mass);
     velocity += acceleration * dt;
 }
