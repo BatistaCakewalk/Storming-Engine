@@ -64,7 +64,7 @@ int main() {
     float fps = 0.0f;
 
     while (window.isOpen()) {
-        sf::Event event;
+        sf::Event event{};
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
@@ -77,14 +77,14 @@ int main() {
 
                     for (auto* body : world.bodies) {
                         if (body->type == BodyType::Circle) {
-                            CircleBody* c = static_cast<CircleBody*>(body);
+                            auto* c = dynamic_cast<CircleBody*>(body);
                             if ((c->position - mouseVec).magnitude() <= c->radius) {
                                 draggedBody = body;
                                 dragOffset = c->position - mouseVec;
                                 break;
                             }
                         } else {
-                            RigidBody* r = static_cast<RigidBody*>(body);
+                            auto* r = dynamic_cast<RigidBody*>(body);
                             if (mouseVec.x >= r->position.x && mouseVec.x <= r->position.x + r->width &&
                                 mouseVec.y >= r->position.y && mouseVec.y <= r->position.y + r->height) {
                                 draggedBody = body;

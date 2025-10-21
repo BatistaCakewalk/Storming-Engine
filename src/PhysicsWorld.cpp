@@ -2,7 +2,7 @@
 #include <cmath>
 #include <algorithm>
 
-const float CELL_SIZE = 100.0f;
+constexpr float CELL_SIZE = 100.0f;
 
 PhysicsWorld::PhysicsWorld(Vector2D g) : gravity(g) {}
 
@@ -38,7 +38,7 @@ std::vector<std::pair<Body*, Body*>> PhysicsWorld::broadPhasePairs() {
             for (int gy = minY; gy <= maxY; ++gy) {
                 int h = hash(gx, gy);
                 for (Body* other : grid[h].bodies) {
-                    pairs.push_back({body, other});
+                    pairs.emplace_back(body, other);
                 }
                 grid[h].bodies.push_back(body);
             }
@@ -57,14 +57,14 @@ void PhysicsWorld::handleCollisions() {
         Body* b = p.second;
 
         if (a->type == BodyType::Circle && b->type == BodyType::Circle)
-            handleCircleCollision(static_cast<CircleBody*>(a), static_cast<CircleBody*>(b));
+            handleCircleCollision(dynamic_cast<CircleBody*>(a), dynamic_cast<CircleBody*>(b));
         else if (a->type == BodyType::Rectangle && b->type == BodyType::Rectangle)
-            handleRectangleCollision(static_cast<RigidBody*>(a), static_cast<RigidBody*>(b));
+            handleRectangleCollision(dynamic_cast<RigidBody*>(a), dynamic_cast<RigidBody*>(b));
         else {
             if (a->type == BodyType::Circle)
-                handleCircleRectangle(static_cast<CircleBody*>(a), static_cast<RigidBody*>(b));
+                handleCircleRectangle(dynamic_cast<CircleBody*>(a), dynamic_cast<RigidBody*>(b));
             else
-                handleCircleRectangle(static_cast<CircleBody*>(b), static_cast<RigidBody*>(a));
+                handleCircleRectangle(dynamic_cast<CircleBody*>(b), dynamic_cast<RigidBody*>(a));
         }
     }
 }
@@ -130,7 +130,7 @@ void PhysicsWorld::handleRectangleCollision(RigidBody* a, RigidBody* b) {
 
 // ----------------- Circle-Rectangle Collision (REWRITE) -----------------
 void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) {
-    // Find closest point on rectangle to circle
+    // Find the closest point on rectangle to circle
     Vector2D closestPoint = {
         std::max(rect->position.x, std::min(circle->position.x, rect->position.x + rect->width)),
         std::max(rect->position.y, std::min(circle->position.y, rect->position.y + rect->height))
