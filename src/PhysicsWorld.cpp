@@ -128,8 +128,9 @@ void PhysicsWorld::handleRectangleCollision(RigidBody* a, RigidBody* b) {
     }
 }
 
-// ----------------- Circle-Rectangle Collision -----------------
+// ----------------- Circle-Rectangle Collision (REWRITE) -----------------
 void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) {
+    // Find closest point on rectangle to circle
     Vector2D closestPoint = {
         std::max(rect->position.x, std::min(circle->position.x, rect->position.x + rect->width)),
         std::max(rect->position.y, std::min(circle->position.y, rect->position.y + rect->height))
@@ -139,10 +140,38 @@ void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) {
     float dist = diff.magnitude();
 
     if (dist < circle->radius) {
-        Vector2D normal = diff.normalized();
+        // Avoid division by zero
+        Vector2D normal = (dist == 0) ? Vector2D(0, -1) : diff.normalized();
         float penetration = circle->radius - dist;
 
-        circle->position += normal * penetration;
-        circle->velocity -= normal * (2 * (circle->velocity.x * normal.x + circle->velocity.y * normal.y));
+        // Positional correction
+        float totalMass = circle->mass + rect->mass;
+        circle->position += normal * (penetration * (rect->mass / totalMass));
+        rect->position -= normal * (penetration * (circle->mass / totalMass));
+
+        // Relative velocity
+        Vector2D relativeVel = circle->velocity - rect->velocity;
+        float velAlongNormal = relativeVel.x * normal.x + relativeVel.y * normal.y;
+
+        if (velAlongNormal > 0) return; // already separating
+
+        // Compute impulse scalar
+        float restitution = std::min(circle->restitution, rect->restitution);
+        float j = -(1 + restitution) * velAlongNormal / (1 / circle->mass + 1 / rect->mass);
+
+        Vector2D impulse = normal * j;
+
+        // Apply impulse
+        circle->velocity += impulse * (1 / circle->mass);
+        rect->velocity -= impulse * (1 / rect->mass);
+
+        // Optional: simple friction along tangent
+        Vector2D tangent = Vector2D(-normal.y, normal.x);
+        float velAlongTangent = relativeVel.x * tangent.x + relativeVel.y * tangent.y;
+        float friction = 0.4f; // tweakable
+        Vector2D frictionImpulse = tangent * (-velAlongTangent * friction / (1 / circle->mass + 1 / rect->mass));
+
+        circle->velocity += frictionImpulse * (1 / circle->mass);
+        rect->velocity -= frictionImpulse * (1 / rect->mass);
     }
 }
