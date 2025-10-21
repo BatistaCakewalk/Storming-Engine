@@ -1,47 +1,148 @@
 #include "PhysicsWorld.h"
 #include <cmath>
+#include <algorithm>
 
-PhysicsWorld::PhysicsWorld(Vector2D g) : gravity(g) {
-}
+const float CELL_SIZE = 100.0f;
 
-void PhysicsWorld::addBody(Body *body) {
+PhysicsWorld::PhysicsWorld(Vector2D g) : gravity(g) {}
+
+void PhysicsWorld::addBody(Body* body) {
     bodies.push_back(body);
 }
 
 void PhysicsWorld::step(float dt, float windowHeight) {
-    for (auto *body: bodies) {
+    // Apply forces and update
+    for (auto* body : bodies) {
         body->applyForce(gravity * body->mass, dt);
         body->update(dt, windowHeight);
     }
+
     handleCollisions();
 }
 
-void PhysicsWorld::handleCircleCollision(CircleBody *a, CircleBody *b) {
+// ----------------- Broad-Phase -----------------
+std::vector<std::pair<Body*, Body*>> PhysicsWorld::broadPhasePairs() {
+    std::unordered_map<int, GridCell> grid;
+    std::vector<std::pair<Body*, Body*>> pairs;
+
+    auto hash = [](int x, int y) { return (x << 16) ^ y; };
+
+    for (Body* body : bodies) {
+        AABB box = body->getAABB();
+        int minX = int(box.min.x / CELL_SIZE);
+        int minY = int(box.min.y / CELL_SIZE);
+        int maxX = int(box.max.x / CELL_SIZE);
+        int maxY = int(box.max.y / CELL_SIZE);
+
+        for (int gx = minX; gx <= maxX; ++gx) {
+            for (int gy = minY; gy <= maxY; ++gy) {
+                int h = hash(gx, gy);
+                for (Body* other : grid[h].bodies) {
+                    pairs.push_back({body, other});
+                }
+                grid[h].bodies.push_back(body);
+            }
+        }
+    }
+
+    return pairs;
+}
+
+// ----------------- Collision Handling -----------------
+void PhysicsWorld::handleCollisions() {
+    auto pairs = broadPhasePairs();
+
+    for (auto& p : pairs) {
+        Body* a = p.first;
+        Body* b = p.second;
+
+        if (a->type == BodyType::Circle && b->type == BodyType::Circle)
+            handleCircleCollision(static_cast<CircleBody*>(a), static_cast<CircleBody*>(b));
+        else if (a->type == BodyType::Rectangle && b->type == BodyType::Rectangle)
+            handleRectangleCollision(static_cast<RigidBody*>(a), static_cast<RigidBody*>(b));
+        else {
+            if (a->type == BodyType::Circle)
+                handleCircleRectangle(static_cast<CircleBody*>(a), static_cast<RigidBody*>(b));
+            else
+                handleCircleRectangle(static_cast<CircleBody*>(b), static_cast<RigidBody*>(a));
+        }
+    }
+}
+
+// ----------------- Circle-Circle Collision -----------------
+void PhysicsWorld::handleCircleCollision(CircleBody* a, CircleBody* b) {
     Vector2D diff = a->position - b->position;
     float dist = diff.magnitude();
     float minDist = a->radius + b->radius;
 
-    if (dist < minDist && dist > 0) {
+    if (dist == 0.0f) {
+        diff = Vector2D(1,0);
+        dist = 1.0f;
+    }
+
+    if (dist < minDist) {
         Vector2D normal = diff.normalized();
         float overlap = minDist - dist;
 
         a->position += normal * (overlap / 2.0f);
         b->position -= normal * (overlap / 2.0f);
 
-        // Simple velocity reflection
-        a->velocity -= normal * (2 * (a->velocity.x * normal.x + a->velocity.y * normal.y));
-        b->velocity -= normal * (2 * (b->velocity.x * normal.x + b->velocity.y * normal.y));
+        Vector2D relativeVel = a->velocity - b->velocity;
+        float velAlongNormal = relativeVel.x * normal.x + relativeVel.y * normal.y;
+        if (velAlongNormal > 0) return;
+
+        float restitution = std::min(a->restitution, b->restitution);
+        float j = -(1 + restitution) * velAlongNormal / (1 / a->mass + 1 / b->mass);
+        Vector2D impulse = normal * j;
+
+        a->velocity += impulse * (1 / a->mass);
+        b->velocity -= impulse * (1 / b->mass);
     }
 }
 
-void PhysicsWorld::handleCollisions() {
-    for (size_t i = 0; i < bodies.size(); ++i) {
-        for (size_t j = i + 1; j < bodies.size(); ++j) {
-            auto *a = dynamic_cast<CircleBody *>(bodies[i]);
-            auto *b = dynamic_cast<CircleBody *>(bodies[j]);
-            if (a && b) {
-                handleCircleCollision(a, b);
-            }
-        }
+// ----------------- Rectangle-Rectangle Collision -----------------
+void PhysicsWorld::handleRectangleCollision(RigidBody* a, RigidBody* b) {
+    Vector2D aMin = a->position;
+    Vector2D aMax = a->position + Vector2D(a->width, a->height);
+    Vector2D bMin = b->position;
+    Vector2D bMax = b->position + Vector2D(b->width, b->height);
+
+    if (aMax.x < bMin.x || aMin.x > bMax.x || aMax.y < bMin.y || aMin.y > bMax.y)
+        return;
+
+    float overlapX = std::min(aMax.x - bMin.x, bMax.x - aMin.x);
+    float overlapY = std::min(aMax.y - bMin.y, bMax.y - aMin.y);
+
+    if (overlapX < overlapY) {
+        float dir = (a->position.x < b->position.x) ? -1.0f : 1.0f;
+        a->position.x += dir * overlapX / 2;
+        b->position.x -= dir * overlapX / 2;
+        a->velocity.x *= -a->restitution;
+        b->velocity.x *= -b->restitution;
+    } else {
+        float dir = (a->position.y < b->position.y) ? -1.0f : 1.0f;
+        a->position.y += dir * overlapY / 2;
+        b->position.y -= dir * overlapY / 2;
+        a->velocity.y *= -a->restitution;
+        b->velocity.y *= -b->restitution;
+    }
+}
+
+// ----------------- Circle-Rectangle Collision -----------------
+void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) {
+    Vector2D closestPoint = {
+        std::max(rect->position.x, std::min(circle->position.x, rect->position.x + rect->width)),
+        std::max(rect->position.y, std::min(circle->position.y, rect->position.y + rect->height))
+    };
+
+    Vector2D diff = circle->position - closestPoint;
+    float dist = diff.magnitude();
+
+    if (dist < circle->radius) {
+        Vector2D normal = diff.normalized();
+        float penetration = circle->radius - dist;
+
+        circle->position += normal * penetration;
+        circle->velocity -= normal * (2 * (circle->velocity.x * normal.x + circle->velocity.y * normal.y));
     }
 }
