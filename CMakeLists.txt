@@ -12,7 +12,7 @@ set(SFML_DIR "C:/Libraries/SFML-2.6.2/lib/cmake/SFML")
 # Find SFML components
 find_package(SFML 2.6 COMPONENTS graphics window system REQUIRED)
 
-# Add your executable
+# Executables
 add_executable(StormPhysics
         src/main.cpp
         src/Vector2D.cpp
