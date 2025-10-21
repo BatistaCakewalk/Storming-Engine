@@ -1,4 +1,4 @@
-# Storming-Engine
+# Storming-Physics
 A purely operated C++ 2D Physics Engine.
 This is the original version, when I was mainly just messing around with C++
 
