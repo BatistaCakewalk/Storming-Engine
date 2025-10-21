@@ -10,7 +10,8 @@ int main() {
     PhysicsWorld world;
 
     CircleBody circle1(Vector2D(200, 50));
-    CircleBody circle2(Vector2D(250, 100));
+    CircleBody circle2(Vector2D(350, 100));
+    
 
     world.addBody(&circle1);
     world.addBody(&circle2);
@@ -19,6 +20,7 @@ int main() {
     shape1.setFillColor(sf::Color::Cyan);
     sf::CircleShape shape2(circle2.radius);
     shape2.setFillColor(sf::Color::Green);
+    
 
     sf::Clock clock;
 
