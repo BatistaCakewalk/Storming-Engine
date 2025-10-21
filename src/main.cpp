@@ -1,5 +1,11 @@
 #include <SFML/Graphics.hpp>
 #include "PhysicsWorld.h"
+#include "Config.h"
+#include <string>
+#include <filesystem>
+#include <stdexcept>
+
+namespace fs = std::filesystem;
 
 int main() {
     constexpr int windowWidth = 800;
@@ -7,6 +13,13 @@ int main() {
     constexpr float fixedDt = 1.0f / 60.0f;
 
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Storming Engine | BETA BRANCH");
+
+    // Apply FPS lock based on config
+    if (!unlockFPS)
+        window.setFramerateLimit(60);
+    else
+        window.setFramerateLimit(0);
+
     PhysicsWorld world;
 
     // Create test bodies
@@ -29,12 +42,26 @@ int main() {
     // Dragging state
     Body* draggedBody = nullptr;
     Vector2D dragOffset(0, 0);
-    float dragStiffness = 1000.0f;   // Spring strength
-    float dragDamping = 20.0f;       // Damping for smoother motion
-    bool allowDragging = false;       // Toggle dragging on/off
+    float dragStiffness = 1000.0f;
+    float dragDamping = 20.0f;
 
-    sf::Clock clock;
+    // FPS text
+    sf::Font font;
+    fs::path fontPath = fs::current_path() / "assets" / "Roboto-Bold.ttf";
+    if (!font.loadFromFile(fontPath.string())) {
+        throw std::runtime_error("Failed to load font from " + fontPath.string());
+    }
+
+    sf::Text fpsText;
+    fpsText.setFont(font);
+    fpsText.setCharacterSize(20);
+    fpsText.setFillColor(sf::Color::White);
+    fpsText.setPosition(10.f, 10.f);
+
+    sf::Clock clock;      // for delta time
+    sf::Clock fpsClock;   // for FPS display
     float accumulator = 0.0f;
+    float fps = 0.0f;
 
     while (window.isOpen()) {
         sf::Event event;
@@ -42,8 +69,8 @@ int main() {
             if (event.type == sf::Event::Closed)
                 window.close();
 
+            // Dragging
             if (allowDragging) {
-                // Mouse press: check for dragging
                 if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
                     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
                     Vector2D mouseVec(mousePos.x, mousePos.y);
@@ -56,7 +83,7 @@ int main() {
                                 dragOffset = c->position - mouseVec;
                                 break;
                             }
-                        } else { // Rectangle
+                        } else {
                             RigidBody* r = static_cast<RigidBody*>(body);
                             if (mouseVec.x >= r->position.x && mouseVec.x <= r->position.x + r->width &&
                                 mouseVec.y >= r->position.y && mouseVec.y <= r->position.y + r->height) {
@@ -68,19 +95,16 @@ int main() {
                     }
                 }
 
-                // Mouse release: stop dragging
                 if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
                     draggedBody = nullptr;
                 }
             }
         }
 
-        // Physics step with fixed timestep
         float dt = clock.restart().asSeconds();
-        accumulator += dt;
 
-        while (accumulator >= fixedDt) {
-            // Apply spring dragging force before stepping physics
+        if (unlockFPS) {
+            // variable timestep
             if (allowDragging && draggedBody) {
                 sf::Vector2i mousePos = sf::Mouse::getPosition(window);
                 Vector2D mouseVec(mousePos.x, mousePos.y);
@@ -90,23 +114,48 @@ int main() {
                 Vector2D dampingForce = draggedBody->velocity * dragDamping;
                 Vector2D springForce = displacement * dragStiffness - dampingForce;
 
-                draggedBody->applyForce(springForce, fixedDt);
+                draggedBody->applyForce(springForce, dt);
             }
+            world.step(dt, windowHeight);
+        } else {
+            // fixed timestep
+            accumulator += dt;
+            while (accumulator >= fixedDt) {
+                if (allowDragging && draggedBody) {
+                    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+                    Vector2D mouseVec(mousePos.x, mousePos.y);
+                    Vector2D target = mouseVec + dragOffset;
 
-            world.step(fixedDt, windowHeight);
-            accumulator -= fixedDt;
+                    Vector2D displacement = target - draggedBody->position;
+                    Vector2D dampingForce = draggedBody->velocity * dragDamping;
+                    Vector2D springForce = displacement * dragStiffness - dampingForce;
+
+                    draggedBody->applyForce(springForce, fixedDt);
+                }
+                world.step(fixedDt, windowHeight);
+                accumulator -= fixedDt;
+            }
         }
 
-        // Update SFML shapes to match physics positions
+        // update SFML shapes
         shape1.setPosition(circle1.position.x - circle1.radius, circle1.position.y - circle1.radius);
         shape2.setPosition(circle2.position.x - circle2.radius, circle2.position.y - circle2.radius);
         shapeRect.setPosition(rect1.position.x, rect1.position.y);
 
-        // Render
+        // update FPS
+        fps = 1.0f / fpsClock.restart().asSeconds();
+        fpsText.setString("FPS: " + std::to_string(int(fps)));
+
+        // render
         window.clear(sf::Color::Black);
         window.draw(shape1);
         window.draw(shape2);
         window.draw(shapeRect);
+
+        if (showFPS) {
+            window.draw(fpsText);   // draw FPS only if enabled
+        }
+
         window.display();
     }
 
