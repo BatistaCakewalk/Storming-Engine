@@ -1,30 +1,27 @@
 #include "PhysicsWorld.h"
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
 constexpr float CELL_SIZE = 100.0f;
 
-PhysicsWorld::PhysicsWorld(Vector2D g) : gravity(g) {}
+PhysicsWorld::PhysicsWorld(Vector2D g) noexcept : gravity(g) {}
 
-void PhysicsWorld::addBody(Body* body) {
+void PhysicsWorld::addBody(Body* body) noexcept {
     bodies.push_back(body);
 }
 
-void PhysicsWorld::step(float dt, float windowHeight) {
-    // Apply forces and update
-    for (auto* body : bodies) {
+void PhysicsWorld::step(float dt, float windowHeight) noexcept {
+    for (Body* body : bodies) {
         body->applyForce(gravity * body->mass, dt);
         body->update(dt, windowHeight);
     }
-
     handleCollisions();
 }
 
-// ----------------- Broad-Phase -----------------
-std::vector<std::pair<Body*, Body*>> PhysicsWorld::broadPhasePairs() {
+// Broad-phase collision detection
+std::vector<std::pair<Body*, Body*>> PhysicsWorld::broadPhasePairs() noexcept {
     std::unordered_map<int, GridCell> grid;
     std::vector<std::pair<Body*, Body*>> pairs;
-
     auto hash = [](int x, int y) { return (x << 16) ^ y; };
 
     for (Body* body : bodies) {
@@ -48,8 +45,8 @@ std::vector<std::pair<Body*, Body*>> PhysicsWorld::broadPhasePairs() {
     return pairs;
 }
 
-// ----------------- Collision Handling -----------------
-void PhysicsWorld::handleCollisions() {
+// Collision dispatcher
+void PhysicsWorld::handleCollisions() noexcept {
     auto pairs = broadPhasePairs();
 
     for (auto& p : pairs) {
@@ -70,15 +67,12 @@ void PhysicsWorld::handleCollisions() {
 }
 
 // ----------------- Circle-Circle Collision -----------------
-void PhysicsWorld::handleCircleCollision(CircleBody* a, CircleBody* b) {
+void PhysicsWorld::handleCircleCollision(CircleBody* a, CircleBody* b) noexcept {
     Vector2D diff = a->position - b->position;
     float dist = diff.magnitude();
     float minDist = a->radius + b->radius;
 
-    if (dist == 0.0f) {
-        diff = Vector2D(1,0);
-        dist = 1.0f;
-    }
+    if (dist == 0.0f) { diff = Vector2D(1,0); dist = 1.0f; }
 
     if (dist < minDist) {
         Vector2D normal = diff.normalized();
@@ -101,7 +95,7 @@ void PhysicsWorld::handleCircleCollision(CircleBody* a, CircleBody* b) {
 }
 
 // ----------------- Rectangle-Rectangle Collision -----------------
-void PhysicsWorld::handleRectangleCollision(RigidBody* a, RigidBody* b) {
+void PhysicsWorld::handleRectangleCollision(RigidBody* a, RigidBody* b) noexcept {
     Vector2D aMin = a->position;
     Vector2D aMax = a->position + Vector2D(a->width, a->height);
     Vector2D bMin = b->position;
@@ -128,9 +122,8 @@ void PhysicsWorld::handleRectangleCollision(RigidBody* a, RigidBody* b) {
     }
 }
 
-// ----------------- Circle-Rectangle Collision (REWRITE) -----------------
-void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) {
-    // Find the closest point on rectangle to circle
+// ----------------- Circle-Rectangle Collision -----------------
+void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) noexcept {
     Vector2D closestPoint = {
         std::max(rect->position.x, std::min(circle->position.x, rect->position.x + rect->width)),
         std::max(rect->position.y, std::min(circle->position.y, rect->position.y + rect->height))
@@ -140,35 +133,28 @@ void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) {
     float dist = diff.magnitude();
 
     if (dist < circle->radius) {
-        // Avoid division by zero
         Vector2D normal = (dist == 0) ? Vector2D(0, -1) : diff.normalized();
         float penetration = circle->radius - dist;
 
-        // Positional correction
         float totalMass = circle->mass + rect->mass;
         circle->position += normal * (penetration * (rect->mass / totalMass));
         rect->position -= normal * (penetration * (circle->mass / totalMass));
 
-        // Relative velocity
         Vector2D relativeVel = circle->velocity - rect->velocity;
         float velAlongNormal = relativeVel.x * normal.x + relativeVel.y * normal.y;
+        if (velAlongNormal > 0) return;
 
-        if (velAlongNormal > 0) return; // already separating
-
-        // Compute impulse scalar
         float restitution = std::min(circle->restitution, rect->restitution);
         float j = -(1 + restitution) * velAlongNormal / (1 / circle->mass + 1 / rect->mass);
-
         Vector2D impulse = normal * j;
 
-        // Apply impulse
         circle->velocity += impulse * (1 / circle->mass);
         rect->velocity -= impulse * (1 / rect->mass);
 
-        // Optional: simple friction along tangent
-        Vector2D tangent = Vector2D(-normal.y, normal.x);
+        // Simple friction along tangent
+        Vector2D tangent(-normal.y, normal.x);
         float velAlongTangent = relativeVel.x * tangent.x + relativeVel.y * tangent.y;
-        float friction = 0.4f; // tweakable
+        float friction = 0.4f;
         Vector2D frictionImpulse = tangent * (-velAlongTangent * friction / (1 / circle->mass + 1 / rect->mass));
 
         circle->velocity += frictionImpulse * (1 / circle->mass);

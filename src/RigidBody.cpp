@@ -1,11 +1,11 @@
 #include "RigidBody.h"
 
-void RigidBody::applyForce(const Vector2D &force, float dt) {
-    Vector2D acceleration = force * (1.0F / mass);
+void RigidBody::applyForce(const Vector2D &force, float dt) noexcept {
+    Vector2D acceleration = force * (1.0f / mass);
     velocity += acceleration * dt;
 }
 
-void RigidBody::update(float dt, float windowHeight) {
+void RigidBody::update(float dt, float windowHeight) noexcept {
     position += velocity * dt;
 
     // Ground collision

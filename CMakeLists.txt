@@ -15,7 +15,6 @@ find_package(SFML 2.6 COMPONENTS graphics window system REQUIRED)
 # Executables
 add_executable(StormPhysics
         src/main.cpp
-        src/Vector2D.cpp
         src/RigidBody.cpp
         src/PhysicsWorld.cpp
         src/CircleBody.cpp

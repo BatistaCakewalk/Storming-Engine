@@ -6,6 +6,7 @@
 #include "CircleBody.h"
 #include <vector>
 #include <unordered_map>
+#include <utility>
 
 struct GridCell {
     std::vector<Body*> bodies;
@@ -16,18 +17,18 @@ public:
     std::vector<Body*> bodies;
     Vector2D gravity;
 
-    explicit PhysicsWorld(Vector2D g = Vector2D(0, 500.0f));
+    explicit PhysicsWorld(Vector2D g = Vector2D(0, 500.0f)) noexcept;
 
-    void addBody(Body* body);
-    void step(float dt, float windowHeight);
+    void addBody(Body* body) noexcept;
+    void step(float dt, float windowHeight) noexcept;
 
 private:
-    void handleCollisions();
-    static void handleCircleCollision(CircleBody* a, CircleBody* b);
-    static void handleRectangleCollision(RigidBody* a, RigidBody* b);
-    static void handleCircleRectangle(CircleBody* circle, RigidBody* rect);
+    void handleCollisions() noexcept;
+    static void handleCircleCollision(CircleBody* a, CircleBody* b) noexcept;
+    static void handleRectangleCollision(RigidBody* a, RigidBody* b) noexcept;
+    static void handleCircleRectangle(CircleBody* circle, RigidBody* rect) noexcept;
 
-    std::vector<std::pair<Body*, Body*>> broadPhasePairs();
+    std::vector<std::pair<Body*, Body*>> broadPhasePairs() noexcept;
 };
 
 #endif

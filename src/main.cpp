@@ -4,8 +4,35 @@
 #include <string>
 #include <filesystem>
 #include <stdexcept>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
+
+// Helper: Get body under mouse
+Body* getBodyUnderMouse(const PhysicsWorld& world, const Vector2D& mouse) {
+    for (auto* body : world.bodies) {
+        if (body->type == BodyType::Circle) {
+            auto* c = dynamic_cast<CircleBody*>(body);
+            if ((c->position - mouse).magnitude() <= c->radius)
+                return body;
+        } else {
+            auto* r = dynamic_cast<RigidBody*>(body);
+            if (mouse.x >= r->position.x && mouse.x <= r->position.x + r->width &&
+                mouse.y >= r->position.y && mouse.y <= r->position.y + r->height)
+                return body;
+        }
+    }
+    return nullptr;
+}
+
+// Helper: Apply drag physics
+void applyDrag(Body* body, const Vector2D& mouse, const Vector2D& dragOffset, float dt, float stiffness, float damping) {
+    Vector2D target = mouse + dragOffset;
+    Vector2D displacement = target - body->position;
+    Vector2D dampingForce = body->velocity * damping;
+    Vector2D springForce = displacement * stiffness - dampingForce;
+    body->applyForce(springForce, dt);
+}
 
 int main() {
     constexpr int windowWidth = 800;
@@ -14,11 +41,8 @@ int main() {
 
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Storming Engine | BETA BRANCH");
 
-    // Apply FPS lock based on config
-    if (!unlockFPS)
-        window.setFramerateLimit(60);
-    else
-        window.setFramerateLimit(0);
+    // FPS limit
+    window.setFramerateLimit(unlockFPS ? 0 : 60);
 
     PhysicsWorld world;
 
@@ -31,13 +55,20 @@ int main() {
     world.addBody(&circle2);
     world.addBody(&rect1);
 
-    // SFML shapes
-    sf::CircleShape shape1(circle1.radius);
-    shape1.setFillColor(sf::Color::Cyan);
-    sf::CircleShape shape2(circle2.radius);
-    shape2.setFillColor(sf::Color::Green);
-    sf::RectangleShape shapeRect(sf::Vector2f(rect1.width, rect1.height));
-    shapeRect.setFillColor(sf::Color::Red);
+    // SFML shapes mapping
+    std::unordered_map<Body*, sf::Shape*> shapeMap;
+
+    sf::CircleShape* shape1 = new sf::CircleShape(circle1.radius);
+    shape1->setFillColor(sf::Color::Cyan);
+    shapeMap[&circle1] = shape1;
+
+    sf::CircleShape* shape2 = new sf::CircleShape(circle2.radius);
+    shape2->setFillColor(sf::Color::Green);
+    shapeMap[&circle2] = shape2;
+
+    sf::RectangleShape* shapeRect = new sf::RectangleShape(sf::Vector2f(rect1.width, rect1.height));
+    shapeRect->setFillColor(sf::Color::Red);
+    shapeMap[&rect1] = shapeRect;
 
     // Dragging state
     Body* draggedBody = nullptr;
@@ -58,10 +89,11 @@ int main() {
     fpsText.setFillColor(sf::Color::White);
     fpsText.setPosition(10.f, 10.f);
 
-    sf::Clock clock;      // for delta time
-    sf::Clock fpsClock;   // for FPS display
+    sf::Clock clock;      // delta time
     float accumulator = 0.0f;
     float fps = 0.0f;
+    float fpsAccumulator = 0.0f;
+    int fpsFrames = 0;
 
     while (window.isOpen()) {
         sf::Event event{};
@@ -69,29 +101,12 @@ int main() {
             if (event.type == sf::Event::Closed)
                 window.close();
 
-            // Dragging
             if (allowDragging) {
                 if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-                    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-                    Vector2D mouseVec(mousePos.x, mousePos.y);
-
-                    for (auto* body : world.bodies) {
-                        if (body->type == BodyType::Circle) {
-                            auto* c = dynamic_cast<CircleBody*>(body);
-                            if ((c->position - mouseVec).magnitude() <= c->radius) {
-                                draggedBody = body;
-                                dragOffset = c->position - mouseVec;
-                                break;
-                            }
-                        } else {
-                            auto* r = dynamic_cast<RigidBody*>(body);
-                            if (mouseVec.x >= r->position.x && mouseVec.x <= r->position.x + r->width &&
-                                mouseVec.y >= r->position.y && mouseVec.y <= r->position.y + r->height) {
-                                draggedBody = body;
-                                dragOffset = r->position - mouseVec;
-                                break;
-                            }
-                        }
+                    Vector2D mouseVec(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
+                    draggedBody = getBodyUnderMouse(world, mouseVec);
+                    if (draggedBody) {
+                        dragOffset = draggedBody->position - mouseVec;
                     }
                 }
 
@@ -104,60 +119,59 @@ int main() {
         float dt = clock.restart().asSeconds();
 
         if (unlockFPS) {
-            // variable timestep
             if (allowDragging && draggedBody) {
-                sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-                Vector2D mouseVec(mousePos.x, mousePos.y);
-                Vector2D target = mouseVec + dragOffset;
-
-                Vector2D displacement = target - draggedBody->position;
-                Vector2D dampingForce = draggedBody->velocity * dragDamping;
-                Vector2D springForce = displacement * dragStiffness - dampingForce;
-
-                draggedBody->applyForce(springForce, dt);
+                Vector2D mouseVec(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
+                applyDrag(draggedBody, mouseVec, dragOffset, dt, dragStiffness, dragDamping);
             }
             world.step(dt, windowHeight);
         } else {
-            // fixed timestep
             accumulator += dt;
             while (accumulator >= fixedDt) {
                 if (allowDragging && draggedBody) {
-                    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-                    Vector2D mouseVec(mousePos.x, mousePos.y);
-                    Vector2D target = mouseVec + dragOffset;
-
-                    Vector2D displacement = target - draggedBody->position;
-                    Vector2D dampingForce = draggedBody->velocity * dragDamping;
-                    Vector2D springForce = displacement * dragStiffness - dampingForce;
-
-                    draggedBody->applyForce(springForce, fixedDt);
+                    Vector2D mouseVec(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
+                    applyDrag(draggedBody, mouseVec, dragOffset, fixedDt, dragStiffness, dragDamping);
                 }
                 world.step(fixedDt, windowHeight);
                 accumulator -= fixedDt;
             }
         }
 
-        // update SFML shapes
-        shape1.setPosition(circle1.position.x - circle1.radius, circle1.position.y - circle1.radius);
-        shape2.setPosition(circle2.position.x - circle2.radius, circle2.position.y - circle2.radius);
-        shapeRect.setPosition(rect1.position.x, rect1.position.y);
+        // Update SFML shapes positions
+        for (auto& [body, shape] : shapeMap) {
+            if (body->type == BodyType::Circle) {
+                auto* c = dynamic_cast<CircleBody*>(body);
+                dynamic_cast<sf::CircleShape*>(shape)->setPosition(c->position.x - c->radius, c->position.y - c->radius);
+            } else {
+                auto* r = dynamic_cast<RigidBody*>(body);
+                dynamic_cast<sf::RectangleShape*>(shape)->setPosition(r->position.x, r->position.y);
+            }
+        }
 
-        // update FPS
-        fps = 1.0f / fpsClock.restart().asSeconds();
+        // Smooth FPS calculation
+        fpsAccumulator += 1.0f / dt;
+        fpsFrames++;
+        if (fpsFrames >= 10) {
+            fps = fpsAccumulator / fpsFrames;
+            fpsFrames = 0;
+            fpsAccumulator = 0.0f;
+        }
         fpsText.setString("FPS: " + std::to_string(int(fps)));
 
-        // render
+        // Render
         window.clear(sf::Color::Black);
-        window.draw(shape1);
-        window.draw(shape2);
-        window.draw(shapeRect);
+        for (auto& [_, shape] : shapeMap) {
+            window.draw(*shape);
+        }
 
         if (showFPS) {
-            window.draw(fpsText);   // draw FPS only if enabled
+            window.draw(fpsText);
         }
 
         window.display();
     }
+
+    // Cleanup shapes
+    for (auto& [_, shape] : shapeMap) delete shape;
 
     return 0;
 }
