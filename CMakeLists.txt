@@ -6,10 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 # Include your headers
 include_directories(include)
 
-# Point to SFML 2.6.2
-set(SFML_DIR "C:/Libraries/SFML-2.6.2/lib/cmake/SFML")
+# Points to SFML 2.6.2
+set(SFML_DIR "lib/SFML-2.6.2/lib/cmake/SFML")
 
-# Find SFML components
+# SFML components
 find_package(SFML 2.6 COMPONENTS graphics window system REQUIRED)
 
 # Executables
