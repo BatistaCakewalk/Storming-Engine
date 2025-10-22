@@ -5,10 +5,11 @@
 #include <filesystem>
 #include <stdexcept>
 #include <unordered_map>
+#include <cmath>
 
 namespace fs = std::filesystem;
 
-// Helper: Get body under mouse
+// Helper: Get body under mouse (supports rotation)
 Body* getBodyUnderMouse(const PhysicsWorld& world, const Vector2D& mouse) {
     for (auto* body : world.bodies) {
         if (body->type == BodyType::Circle) {
@@ -17,22 +18,57 @@ Body* getBodyUnderMouse(const PhysicsWorld& world, const Vector2D& mouse) {
                 return body;
         } else {
             auto* r = dynamic_cast<RigidBody*>(body);
-            if (mouse.x >= r->position.x && mouse.x <= r->position.x + r->width &&
-                mouse.y >= r->position.y && mouse.y <= r->position.y + r->height)
+
+            // Translate mouse to rectangle local space
+            Vector2D local = mouse - r->center();
+
+            // Rotate by -angle
+            float cosA = std::cos(-r->angle);
+            float sinA = std::sin(-r->angle);
+            Vector2D rotated{
+                local.x * cosA - local.y * sinA,
+                local.x * sinA + local.y * cosA
+            };
+
+            if (rotated.x >= -r->width / 2.0f && rotated.x <= r->width / 2.0f &&
+                rotated.y >= -r->height / 2.0f && rotated.y <= r->height / 2.0f) {
                 return body;
+            }
         }
     }
     return nullptr;
 }
 
-// Helper: Apply drag physics
+// Helper: Apply drag physics (with rotation for rectangles)
 void applyDrag(Body* body, const Vector2D& mouse, const Vector2D& dragOffset, float dt, float stiffness, float damping) {
     Vector2D target = mouse + dragOffset;
     Vector2D displacement = target - body->position;
     Vector2D dampingForce = body->velocity * damping;
     Vector2D springForce = displacement * stiffness - dampingForce;
+
+    // Apply linear force at center
     body->applyForce(springForce, dt);
+
+    // Only apply torque if it's a rectangle
+    if (body->type == BodyType::Rectangle) {
+        auto* r = dynamic_cast<RigidBody*>(body);
+
+        // Vector from center to mouse
+        Vector2D rToMouse = mouse - r->center();
+
+        // Compute perpendicular torque component
+        float torque = rToMouse.x * springForce.y - rToMouse.y * springForce.x;
+
+        // Limit torque to prevent extreme rotation
+        float maxTorque = 500.0f; // tweak this
+        if (torque > maxTorque) torque = maxTorque;
+        else if (torque < -maxTorque) torque = -maxTorque;
+
+        // Apply angular acceleration
+        r->angularVelocity += (torque / r->inertia) * dt;
+    }
 }
+
 
 int main() {
     constexpr int windowWidth = 800;
@@ -40,8 +76,6 @@ int main() {
     constexpr float fixedDt = 1.0f / 60.0f;
 
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Storming Engine | BETA BRANCH");
-
-    // FPS limit
     window.setFramerateLimit(unlockFPS ? 0 : 60);
 
     PhysicsWorld world;
@@ -89,7 +123,7 @@ int main() {
     fpsText.setFillColor(sf::Color::White);
     fpsText.setPosition(10.f, 10.f);
 
-    sf::Clock clock;      // delta time
+    sf::Clock clock;      
     float accumulator = 0.0f;
     float fps = 0.0f;
     float fpsAccumulator = 0.0f;
@@ -106,7 +140,12 @@ int main() {
                     Vector2D mouseVec(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
                     draggedBody = getBodyUnderMouse(world, mouseVec);
                     if (draggedBody) {
-                        dragOffset = draggedBody->position - mouseVec;
+                        if (draggedBody->type == BodyType::Rectangle) {
+                            auto* r = dynamic_cast<RigidBody*>(draggedBody);
+                            dragOffset = r->center() - mouseVec;
+                        } else {
+                            dragOffset = draggedBody->position - mouseVec;
+                        }
                     }
                 }
 
@@ -136,14 +175,18 @@ int main() {
             }
         }
 
-        // Update SFML shapes positions
+        // Update SFML shapes positions and rotation
         for (auto& [body, shape] : shapeMap) {
             if (body->type == BodyType::Circle) {
                 auto* c = dynamic_cast<CircleBody*>(body);
                 dynamic_cast<sf::CircleShape*>(shape)->setPosition(c->position.x - c->radius, c->position.y - c->radius);
             } else {
                 auto* r = dynamic_cast<RigidBody*>(body);
-                dynamic_cast<sf::RectangleShape*>(shape)->setPosition(r->position.x, r->position.y);
+                auto* rectShape = dynamic_cast<sf::RectangleShape*>(shape);
+
+                rectShape->setOrigin(r->width / 2.0f, r->height / 2.0f);
+                rectShape->setPosition(r->center().x, r->center().y);
+                rectShape->setRotation(r->angle * 180.0f / 3.14159265f);
             }
         }
 
