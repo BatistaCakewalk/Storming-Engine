@@ -28,12 +28,6 @@ private:
     static void handleRectangleCollision(RigidBody* a, RigidBody* b) noexcept;
     static void handleCircleRectangle(CircleBody* circle, RigidBody* rect) noexcept;
 
-    static bool overlapOnAxis(const std::vector<Vector2D>& aCorners,
-                              const std::vector<Vector2D>& bCorners,
-                              const Vector2D& axis,
-                              float& overlap,
-                              Vector2D& smallestAxis);
-
     std::vector<std::pair<Body*, Body*>> broadPhasePairs() noexcept;
 };
 
