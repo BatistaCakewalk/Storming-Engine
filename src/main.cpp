@@ -39,7 +39,7 @@ int main() {
     constexpr int windowHeight = 600;
     constexpr float fixedDt = 1.0f / 60.0f;
 
-    sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Storming Engine | BETA BRANCH");
+    sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), windowName);
 
     // FPS limit
     window.setFramerateLimit(unlockFPS ? 0 : targetFPS);
