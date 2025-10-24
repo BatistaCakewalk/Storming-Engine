@@ -42,8 +42,8 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Storming Engine | BETA BRANCH");
 
     // FPS limit
-    window.setFramerateLimit(unlockFPS ? 0 : 60);
-
+    window.setFramerateLimit(unlockFPS ? 0 : targetFPS);
+    
     PhysicsWorld world;
 
     // Create test bodies

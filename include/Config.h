@@ -8,5 +8,6 @@
 inline bool allowDragging = true;   // toggle dragging
 inline bool unlockFPS = true;      // toggle FPS unlock
 inline bool showFPS = true;        // FPS Counter, u want it? It's yours my friend, as long as u have enough trues.
+inline int targetFPS = 75;          // custom FPS limit if unlockFPS is false
 
 #endif
