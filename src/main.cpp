@@ -1,6 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include "PhysicsWorld.h"
 #include "Config.h"
+#include "DraggingManager.h"
 #include <string>
 #include <filesystem>
 #include <stdexcept>
@@ -8,42 +9,17 @@
 
 namespace fs = std::filesystem;
 
-// Helper: Get body under mouse
-Body* getBodyUnderMouse(const PhysicsWorld& world, const Vector2D& mouse) {
-    for (auto* body : world.bodies) {
-        if (body->type == BodyType::Circle) {
-            auto* c = dynamic_cast<CircleBody*>(body);
-            if ((c->position - mouse).magnitude() <= c->radius)
-                return body;
-        } else {
-            auto* r = dynamic_cast<RigidBody*>(body);
-            if (mouse.x >= r->position.x && mouse.x <= r->position.x + r->width &&
-                mouse.y >= r->position.y && mouse.y <= r->position.y + r->height)
-                return body;
-        }
-    }
-    return nullptr;
-}
-
-// Helper: Apply drag physics
-void applyDrag(Body* body, const Vector2D& mouse, const Vector2D& dragOffset, float dt, float stiffness, float damping) {
-    Vector2D target = mouse + dragOffset;
-    Vector2D displacement = target - body->position;
-    Vector2D dampingForce = body->velocity * damping;
-    Vector2D springForce = displacement * stiffness - dampingForce;
-    body->applyForce(springForce, dt);
-}
-
 int main() {
-    constexpr int windowWidth = 800;
-    constexpr int windowHeight = 600;
-    constexpr float fixedDt = 1.0f / 60.0f;
+    // Window settings
+    int windowWidth = windowWidthSize;
+    int windowHeight = windowHeightSize;
 
     sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), windowName);
 
     // FPS limit
     window.setFramerateLimit(unlockFPS ? 0 : targetFPS);
-    
+
+    // Physics world
     PhysicsWorld world;
 
     // Create test bodies
@@ -55,7 +31,7 @@ int main() {
     world.addBody(&circle2);
     world.addBody(&rect1);
 
-    // SFML shapes mapping
+    // Map bodies to SFML shapes
     std::unordered_map<Body*, sf::Shape*> shapeMap;
 
     sf::CircleShape* shape1 = new sf::CircleShape(circle1.radius);
@@ -70,13 +46,10 @@ int main() {
     shapeRect->setFillColor(sf::Color::Red);
     shapeMap[&rect1] = shapeRect;
 
-    // Dragging state
-    Body* draggedBody = nullptr;
-    Vector2D dragOffset(0, 0);
-    float dragStiffness = 1000.0f;
-    float dragDamping = 20.0f;
+    // Dragging manager
+    DraggingManager draggingManager;
 
-    // FPS text
+    // FPS text setup
     sf::Font font;
     fs::path fontPath = fs::current_path() / "assets" / "Roboto-Bold.ttf";
     if (!font.loadFromFile(fontPath.string())) {
@@ -89,54 +62,39 @@ int main() {
     fpsText.setFillColor(sf::Color::White);
     fpsText.setPosition(10.f, 10.f);
 
-    sf::Clock clock;      // delta time
+    sf::Clock clock;
     float accumulator = 0.0f;
     float fps = 0.0f;
     float fpsAccumulator = 0.0f;
     int fpsFrames = 0;
 
+    constexpr float fixedDt = 1.0f / 60.0f;
+
+    // Main loop
     while (window.isOpen()) {
         sf::Event event{};
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
-
-            if (allowDragging) {
-                if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-                    Vector2D mouseVec(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
-                    draggedBody = getBodyUnderMouse(world, mouseVec);
-                    if (draggedBody) {
-                        dragOffset = draggedBody->position - mouseVec;
-                    }
-                }
-
-                if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
-                    draggedBody = nullptr;
-                }
-            }
         }
 
         float dt = clock.restart().asSeconds();
 
+        // Update dragging and apply forces
+        draggingManager.update(window, world, dt);
+
+        // Step physics
         if (unlockFPS) {
-            if (allowDragging && draggedBody) {
-                Vector2D mouseVec(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
-                applyDrag(draggedBody, mouseVec, dragOffset, dt, dragStiffness, dragDamping);
-            }
             world.step(dt, windowHeight);
         } else {
             accumulator += dt;
             while (accumulator >= fixedDt) {
-                if (allowDragging && draggedBody) {
-                    Vector2D mouseVec(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y);
-                    applyDrag(draggedBody, mouseVec, dragOffset, fixedDt, dragStiffness, dragDamping);
-                }
                 world.step(fixedDt, windowHeight);
                 accumulator -= fixedDt;
             }
         }
 
-        // Update SFML shapes positions
+        // Update SFML shape positions
         for (auto& [body, shape] : shapeMap) {
             if (body->type == BodyType::Circle) {
                 auto* c = dynamic_cast<CircleBody*>(body);

@@ -17,6 +17,7 @@ add_executable(StormPhysics
         src/main.cpp
         src/RigidBody.cpp
         src/PhysicsWorld.cpp
+        src/DraggingManager.cpp
         src/CircleBody.cpp
         include/Config.h
 )
