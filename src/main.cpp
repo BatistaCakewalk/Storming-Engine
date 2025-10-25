@@ -101,7 +101,11 @@ int main() {
                 dynamic_cast<sf::CircleShape*>(shape)->setPosition(c->position.x - c->radius, c->position.y - c->radius);
             } else {
                 auto* r = dynamic_cast<RigidBody*>(body);
-                dynamic_cast<sf::RectangleShape*>(shape)->setPosition(r->position.x, r->position.y);
+                sf::RectangleShape* rectShape = dynamic_cast<sf::RectangleShape*>(shape);
+                rectShape->setSize(sf::Vector2f(r->width, r->height));
+                rectShape->setOrigin(r->width / 2.0f, r->height / 2.0f); // rotate around center
+                rectShape->setPosition(r->center().x, r->center().y);
+                rectShape->setRotation(r->angle);
             }
         }
 

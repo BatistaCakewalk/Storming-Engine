@@ -24,11 +24,16 @@ public:
 
 private:
     void handleCollisions() noexcept;
+
     static void handleCircleCollision(CircleBody* a, CircleBody* b) noexcept;
     static void handleRectangleCollision(RigidBody* a, RigidBody* b) noexcept;
     static void handleCircleRectangle(CircleBody* circle, RigidBody* rect) noexcept;
 
+    // Helper to apply torque from a force applied at a point
+    static void applyTorque(RigidBody* rect, const Vector2D& force, const Vector2D& contactPoint) noexcept;
+
     std::vector<std::pair<Body*, Body*>> broadPhasePairs() noexcept;
+
 };
 
 #endif

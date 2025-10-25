@@ -16,6 +16,8 @@ public:
     constexpr Vector2D operator-(const Vector2D& other) const { return {x - other.x, y - other.y}; }
     constexpr Vector2D operator*(float scalar) const { return {x * scalar, y * scalar}; }
     constexpr Vector2D operator/(float scalar) const { return {x / scalar, y / scalar}; }
+    constexpr Vector2D operator-() const { return {-x, -y}; }
+
 
     Vector2D& operator+=(const Vector2D& other) { x += other.x; y += other.y; return *this; }
     Vector2D& operator-=(const Vector2D& other) { x -= other.x; y -= other.y; return *this; }

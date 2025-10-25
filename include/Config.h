@@ -18,7 +18,7 @@ inline float DampingDragging = 25.0f;     // Drag damping (higher = less oscilla
 
 // ----------------- Application Settings -----------------
 inline std::string windowName = "Storming Engine | BETA BRANCH"; // Window title
-inline int windowWidthSize = 800;   // Window width
+inline int windowWidthSize = 900;   // Window width
 inline int windowHeightSize = 600;  // Window height
 
 #endif
