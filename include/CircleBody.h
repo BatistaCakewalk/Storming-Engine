@@ -16,12 +16,11 @@ public:
     void update(float dt, float windowHeight) noexcept override;
 
     [[nodiscard]] AABB getAABB() const noexcept override {
-        return { Vector2D(position.x - radius, position.y - radius),
-                 Vector2D(position.x + radius, position.y + radius) };
+        return { position - Vector2D(radius, radius), position + Vector2D(radius, radius) };
     }
 
     [[nodiscard]] Vector2D center() const noexcept override {
-        return position;
+        return position; // for circle, position is its center
     }
 };
 

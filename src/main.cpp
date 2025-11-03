@@ -30,6 +30,7 @@ int main() {
     world.addBody(&circle1);
     world.addBody(&circle2);
     world.addBody(&rect1);
+    
 
     // Map bodies to SFML shapes
     std::unordered_map<Body*, sf::Shape*> shapeMap;
@@ -106,6 +107,7 @@ int main() {
                 rectShape->setOrigin(r->width / 2.0f, r->height / 2.0f); // rotate around center
                 rectShape->setPosition(r->center().x, r->center().y);
                 rectShape->setRotation(r->angle);
+                
             }
         }
 

@@ -6,11 +6,15 @@ void CircleBody::applyForce(const Vector2D &force, float dt) noexcept {
 }
 
 void CircleBody::update(float dt, float windowHeight) noexcept {
+    // Linear motion
     position += velocity * dt;
 
-    // Ground collision
+    // Simple ground collision
     if (position.y > windowHeight - radius) {
         position.y = windowHeight - radius;
         velocity.y *= -restitution;
     }
 }
+
+
+
