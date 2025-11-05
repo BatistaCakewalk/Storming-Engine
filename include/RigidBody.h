@@ -3,7 +3,6 @@
 
 #pragma once
 #include "Body.h"
-#include <array>
 
 class RigidBody : public Body {
 public:

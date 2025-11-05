@@ -19,10 +19,11 @@ void RigidBody::applyTorque(float torque, float dt) noexcept {
 }
 
 void RigidBody::update(float dt, float windowHeight) noexcept {
-    // 1. Linear motion
+    // 1. Apply gravity
+    velocity += Vector2D(0, 9.81f) * dt;
     position += velocity * dt;
 
-    // 2. Angular motion
+    // 2. Update rotation
     angle += angularVelocity * dt;
 
     // 3. Ground collision
@@ -30,31 +31,33 @@ void RigidBody::update(float dt, float windowHeight) noexcept {
     if (bottomY > windowHeight) {
         position.y = windowHeight - height;
 
-        // Bounce in Y-axis
+        // Bounce
         velocity.y *= -restitution;
 
-        // Small friction to slow X sliding
-        velocity.x *= 0.85f;
+        // Friction slows horizontal movement
+        velocity.x *= 0.8f;
 
-        // Apply tiny torque based on off-center contact
-        float contactOffsetX = (center().x - (position.x + width / 2.0f));
-        float appliedTorque = contactOffsetX * -velocity.y * 0.02f; // reduced factor
-        angularVelocity += appliedTorque / inertia;
+        // Torque from collision offset (corner hits)
+        float contactOffsetX = (position.x + width / 2.0f) - (position.x + width / 2.0f);
+        angularVelocity += contactOffsetX * -velocity.y * 0.05f;
 
-        // Clamp angular velocity to avoid wild spins
-        angularVelocity = std::clamp(angularVelocity, -5.0f, 5.0f);
+        // Angular damping to prevent infinite spin
+        angularVelocity *= 0.95f;
     }
 
-    // 4. Stabilize rectangle when nearly at rest
-    if (bottomY >= windowHeight - 0.5f && std::abs(angularVelocity) < 0.1f) {
-        angle = std::round(angle / 90.0f) * 90.0f; // snap to nearest right angle
+    // 4. Stabilization if resting
+    bool almostAtRest = std::abs(velocity.y) < 0.1f && bottomY >= windowHeight - 0.5f;
+    if (almostAtRest) {
+        // Snap to nearest 90°
+        angle = std::round(angle / 90.0f) * 90.0f;
         angularVelocity = 0.0f;
+        velocity.x *= 0.7f;  // friction slows horizontal movement
     }
 
-    // 5. Small angular damping for stability
-    angularVelocity *= 0.98f;
+    // 5. Clamp tiny velocities
+    if (std::abs(velocity.x) < 0.01f) velocity.x = 0;
+    if (std::abs(velocity.y) < 0.01f) velocity.y = 0;
 }
-
 
 
 
