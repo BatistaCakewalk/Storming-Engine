@@ -25,33 +25,35 @@ void RigidBody::update(float dt, float windowHeight) noexcept {
     // 2. Angular motion
     angle += angularVelocity * dt;
 
-    // 3. Simple ground collision
+    // 3. Ground collision
     float bottomY = position.y + height;
     if (bottomY > windowHeight) {
         position.y = windowHeight - height;
+
+        // Bounce in Y-axis
         velocity.y *= -restitution;
-        velocity.x *= 0.9f; // friction
 
-        // Torque from contact
-        float contactOffsetX = (position.x + width / 2.0f) - (position.x + width / 2.0f); 
-        float appliedTorque = contactOffsetX * -velocity.y * 0.05f;
-        angularVelocity += appliedTorque;
+        // Small friction to slow X sliding
+        velocity.x *= 0.85f;
 
-        // Angular damping
-        angularVelocity *= 0.98f;
+        // Apply tiny torque based on off-center contact
+        float contactOffsetX = (center().x - (position.x + width / 2.0f));
+        float appliedTorque = contactOffsetX * -velocity.y * 0.02f; // reduced factor
+        angularVelocity += appliedTorque / inertia;
+
+        // Clamp angular velocity to avoid wild spins
+        angularVelocity = std::clamp(angularVelocity, -5.0f, 5.0f);
     }
 
-    // 4. Gradual stabilization (instead of snapping)
-    if (bottomY >= windowHeight - 0.5f) {
-        float targetAngle = std::round(angle / 90.0f) * 90.0f;
-        float angleDiff = targetAngle - angle;
-        // Apply a small proportional torque to gradually bring the angle closer
-        angularVelocity += angleDiff * 0.1f; // tweak factor for smooth wobble
-        // Dampen the angular velocity slightly to prevent endless oscillation
-        angularVelocity *= 0.95f;
+    // 4. Stabilize rectangle when nearly at rest
+    if (bottomY >= windowHeight - 0.5f && std::abs(angularVelocity) < 0.1f) {
+        angle = std::round(angle / 90.0f) * 90.0f; // snap to nearest right angle
+        angularVelocity = 0.0f;
     }
+
+    // 5. Small angular damping for stability
+    angularVelocity *= 0.98f;
 }
-
 
 
 

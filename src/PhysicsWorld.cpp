@@ -260,7 +260,6 @@ void PhysicsWorld::handleRectangleCollision(RigidBody* a, RigidBody* b) noexcept
 
 // ----------------- Circle-Rectangle Collision -----------------
 void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) noexcept {
-    // Transform circle to rectangle local space
     Vector2D rectCenter = rect->center();
     float rad = rect->angle * 3.14159265f / 180.0f;
 
@@ -270,9 +269,9 @@ void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) no
         return Vector2D(p.x * cosA - p.y * sinA, p.x * sinA + p.y * cosA);
     };
 
+    // Circle in rectangle local space
     Vector2D localCircle = rotatePoint(circle->position - rectCenter, -rad);
 
-    // Clamp to rectangle half-extents
     Vector2D halfExtents(rect->width / 2.0f, rect->height / 2.0f);
     Vector2D clamped(
         std::clamp(localCircle.x, -halfExtents.x, halfExtents.x),
@@ -282,17 +281,15 @@ void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) no
     Vector2D closest = rotatePoint(clamped, rad) + rectCenter;
     Vector2D diff = circle->position - closest;
     float dist = diff.magnitude();
-
     if (dist >= circle->radius) return; // no collision
 
     Vector2D normal = (dist == 0.0f) ? Vector2D(0, -1) : diff.normalized();
     float penetration = circle->radius - dist;
 
-    // Positional correction (bias more toward circle to let rectangle be stable)
-    const float percent = 0.6f; // less aggressive
+    // Positional correction (circle more mobile than rectangle)
+    const float percent = 0.6f;
     const float slop = 0.01f;
     float correction = std::max(penetration - slop, 0.0f) * percent;
-
     float totalMass = circle->mass + rect->mass;
     circle->position += normal * (correction * (rect->mass / totalMass));
     rect->position -= normal * (correction * (circle->mass / totalMass));
@@ -305,7 +302,7 @@ void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) no
     float velAlongNormal = Vector2D::dot(relativeVel, normal);
     if (velAlongNormal > 0) return; // moving apart
 
-    // Impulse resolution
+    // Impulse
     float restitution = std::min(circle->restitution, rect->restitution);
     float j = -(1 + restitution) * velAlongNormal / (1 / circle->mass + 1 / rect->mass);
     Vector2D impulse = normal * j;
@@ -313,22 +310,22 @@ void PhysicsWorld::handleCircleRectangle(CircleBody* circle, RigidBody* rect) no
     circle->velocity += impulse * (1 / circle->mass);
     rect->velocity -= impulse * (1 / rect->mass);
 
-    // Apply torque proportional to contact offset (more realistic)
-    float torque = r.x * impulse.y - r.y * impulse.x;
-    torque *= 0.5f; // damped torque for stability
+    // Torque from collision (scaled)
+    float torque = (r.x * impulse.y - r.y * impulse.x) / rect->inertia;
+    torque = std::clamp(torque, -2.0f, 2.0f);
     rect->applyTorque(torque, 1.0f);
 
-    // Friction along tangent (stronger for stacking)
+    // Friction along tangent
     Vector2D tangent(-normal.y, normal.x);
     float velAlongTangent = Vector2D::dot(relativeVel, tangent);
     if (std::abs(velAlongTangent) > 0.0001f) {
-        float mu = 0.6f; // stronger friction
+        float mu = 0.6f;
         Vector2D frictionImpulse = tangent * (-velAlongTangent * mu / (1 / circle->mass + 1 / rect->mass));
         circle->velocity += frictionImpulse * (1 / circle->mass);
         rect->velocity -= frictionImpulse * (1 / rect->mass);
     }
 
-    // Optional: small angular damping on rectangle for stability
+    // Small angular damping
     rect->angularVelocity *= 0.98f;
 }
 
