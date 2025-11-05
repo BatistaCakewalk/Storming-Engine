@@ -19,21 +19,42 @@ void RigidBody::applyTorque(float torque, float dt) noexcept {
 }
 
 void RigidBody::update(float dt, float windowHeight) noexcept {
-    // Linear motion
+    // 1. Linear motion
     position += velocity * dt;
 
-    // Angular motion
+    // 2. Angular motion
     angle += angularVelocity * dt;
 
-    // Ground collision (simple)
-    if (position.y > windowHeight - height) {
+    // 3. Simple ground collision
+    float bottomY = position.y + height;
+    if (bottomY > windowHeight) {
         position.y = windowHeight - height;
         velocity.y *= -restitution;
+        velocity.x *= 0.9f; // friction
 
-        // small torque on collision with ground based on velocity
-        applyTorque(velocity.x * 0.1f, dt);
+        // Torque from contact
+        float contactOffsetX = (position.x + width / 2.0f) - (position.x + width / 2.0f); 
+        float appliedTorque = contactOffsetX * -velocity.y * 0.05f;
+        angularVelocity += appliedTorque;
+
+        // Angular damping
+        angularVelocity *= 0.98f;
+    }
+
+    // 4. Gradual stabilization (instead of snapping)
+    if (bottomY >= windowHeight - 0.5f) {
+        float targetAngle = std::round(angle / 90.0f) * 90.0f;
+        float angleDiff = targetAngle - angle;
+        // Apply a small proportional torque to gradually bring the angle closer
+        angularVelocity += angleDiff * 0.1f; // tweak factor for smooth wobble
+        // Dampen the angular velocity slightly to prevent endless oscillation
+        angularVelocity *= 0.95f;
     }
 }
+
+
+
+
 
 AABB RigidBody::getAABB() const noexcept {
     return { position, position + Vector2D(width, height) };
